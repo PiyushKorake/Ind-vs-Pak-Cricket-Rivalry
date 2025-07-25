@@ -1,0 +1,354 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+# India Pakistan Cricket Rivalry
+
+## by Piyush Korake
+
+```{r setup, include=T}
+knitr::opts_chunk$set(echo = T)
+```
+
+**Import Libraries and Data Set**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+library(DT)
+library(dplyr)
+library(ggplot2)
+library(shiny)
+library(readxl)
+library(tidyr)
+
+
+data2=read_xlsx("C:/Users/piyus/Downloads/India-Pak-Cricket-Rivalry.xlsx")
+
+```
+
+**Create a bar plot tournament type wise**
+
+```{r echo=TRUE, message=TRUE, warning=FALSE, paged.print=FALSE}
+# Group by 'Tournament Type' and summarize the count
+twd = data2 %>%
+  group_by(`Tournament Type`) %>%
+  summarise(count = n())
+
+# Create a bar plot tournament type wise
+ggplot(twd, aes(x = `Tournament Type`, y = count, fill = `Tournament Type`)) +
+  geom_bar(stat = "identity", color = "blue1") +
+  geom_text(aes(label = count), vjust = -0.5, size = 3, color = "black", position = position_stack(vjust = 0.5)) +
+  
+  # Customize the theme and labels
+  labs(title = "Tournament Type wise Distribution", y = "Count", x = "Tournament Type") +
+  theme_minimal() +  
+  
+  # Customize axis text
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))  # Adjust angle for better visibility
+
+
+
+```
+
+**India vs Pakistan Match Result Distribution**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+result_IP <- data2$Result
+
+
+ui <- fluidPage(
+  titlePanel("India vs Pakistan Match Result Distribution"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("tournament", "Choose a Tournament", choices = unique(data2$`Tournament Type`))
+    ),
+    mainPanel(
+      plotOutput("resultPlot")
+    )
+  )
+)
+
+# Define server logic
+server <- function(input, output) {
+  output$resultPlot <- renderPlot({
+    # Filter data based on selected tournament
+    selected_data <- data2 %>%
+      filter(`Tournament Type` == input$tournament)
+    
+    # Count occurrences of each result
+    result_counts <- table(selected_data$Result) 
+    
+    # Create a data frame for plotting
+    result_df <- data.frame(result = names(result_counts), count = as.numeric(result_counts))
+    
+    # Plot match result distribution
+    ggplot(result_df, aes(x = result, y = count, fill = result)) +
+      geom_bar(stat = "identity") +
+      geom_text(aes(label = count), vjust = 1.5, color = "black", size = 3) +  # Add count labels
+      labs(title = paste("Match Result Distribution:", input$tournament, "India vs Pakistan"), x = "Result", y = "Count") +
+      scale_fill_manual(values = c("India Won" = "blue", "Pakistan Won" = "green", "Tied" = "red")) +
+      theme_minimal()
+  })
+}
+
+shinyApp(ui = ui, server = server)
+
+```
+
+**India vs Pakistan Match Result Distribution Yearwise**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+custom_colors <- c("#005EB8", "#000000")
+
+#Yearwise
+result_IP <- data2$Result
+ui <- fluidPage(
+  titlePanel("India vs Pakistan Match Result Distribution"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("tournament", "Choose a Tournament", choices = unique(data2$`Tournament Type`)),
+      sliderInput("year_range", "Select Year Range", min = 1950, max = 2023, value = c(2000, 2023), step = 1)
+    ),
+    mainPanel(
+      plotOutput("resultPlot")
+    )
+  )
+)
+
+# Define server logic
+server <- function(input, output) {
+  output$resultPlot <- renderPlot({
+    # Filter data based on selected tournament and year range using dplyr
+    selected_data <- data2 %>%
+      filter(`Tournament Type` == input$tournament, between(Year, input$year_range[1], input$year_range[2]))
+    
+    # Count occurrences of each result_IP
+    result_counts <- table(selected_data$Result)
+    
+    # Create a data frame for plotting
+    result_df <- data.frame(result_IP = names(result_counts), count = as.numeric(result_counts))
+    
+    # Plot match result distribution
+    ggplot(result_df, aes(x = result_IP, y = count, fill = result_IP)) +
+      geom_bar(stat = "identity") +
+      geom_text(aes(label = count, y = count, x = result_IP), vjust = -0.5, color = "black", size = 3) +  # Add count labels inside bars
+      labs(title = paste("Match Result Distribution:", input$tournament, "India vs Pakistan"), x = "result_IP", y = "Count") +
+      scale_fill_manual(values = c("India Won" = "blue", "Pakistan Won" = "green", "Tied" = "red")) +
+      theme_minimal()
+  })
+}
+shinyApp(ui = ui, server = server)
+
+```
+
+**HOSTWISE**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+custom_colors <- c("#EE2A35","#005EB8", "#000000")
+
+ui <- fluidPage(
+  titlePanel("India vs Pakistan Match Result Distribution"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("host", "Choose a Host", choices = unique(data2$Host)),
+      selectInput("tournament", "Choose a Tournament", choices = unique(data2$`Tournament Type`)),
+      sliderInput("year_range", "Select Year Range", min = min(data2$Year), max = max(data2$Year), value = c(min(data2$Year), max(data2$Year)), step = 1)
+    ),
+    mainPanel(
+      plotOutput("resultPlot")
+    )
+  )
+)
+
+# Server
+server <- function(input, output) {
+  output$resultPlot <- renderPlot({
+    # Filter data based on selected host, tournament, and year range
+    selected_data <- data2 %>%
+      filter(Host == input$host, `Tournament Type` == input$tournament, between(Year, input$year_range[1], input$year_range[2]))
+    
+    # Count occurrences of each result and team
+    result_counts <- selected_data %>%
+      group_by(Result) %>%
+      summarise(matches_count = n())
+    
+    # Plot result distribution with different colors and number of wins inside bars
+    ggplot(result_counts, aes(x = Result, y = matches_count, fill = Result)) +
+      geom_bar(stat = "identity", position = "stack", color = "black") +
+      geom_text(aes(label = matches_count), position = position_stack(vjust = 0.5), color = "black", size = 4) +
+      labs(title = paste("Result Distribution at", input$host, ":", input$tournament, "India vs Pakistan"), y = "Number of Matches") +
+      scale_fill_manual(values = c("India Won" = "green", "Pakistan Won" = "blue", "Tied" = "red")) +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+  })
+}
+
+# Run the Shiny app
+shinyApp(ui = ui, server = server)
+
+```
+
+**Grouped Bar**
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# Count occurrences of each result and host
+result_counts <- data2 %>%
+  filter(Result == "India Won" | Result == "Pakistan Won" | Result == "Tied") %>%
+  group_by(Host, Result) %>%
+  summarise(matches_count = n())
+
+# Plot grouped bar chart
+ggplot(result_counts, aes(x = Host, y = matches_count, fill = Result)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  geom_text(aes(label = matches_count), position = position_dodge(width = 1), vjust = -0.5) +  
+  labs(title = "Number of Matches Won by India and Pakistan in Different Hosts",
+       y = "Number of Matches",
+       fill = "Result") +
+  scale_fill_manual(values = c("India Won" = "blue", "Pakistan Won" = "green", "Tied" = "red")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+**stacked bar chart**
+
+```{r fig.height=8, fig.width=15, message=FALSE, warning=FALSE, paged.print=FALSE}
+# Count occurrences of each result and host
+result_counts <- data2 %>%
+  filter(Result == "India Won" | Result == "Pakistan Won" | Result == "Tied") %>%
+  group_by(Host, Result) %>%
+  summarise(matches_count = n())
+
+# Plot stacked bar chart
+ggplot(result_counts, aes(x = Host, y = matches_count, fill = Result)) +
+  geom_bar(stat = "identity", color = "black") +
+  geom_text(aes(label = matches_count), position = position_stack(vjust = 0.5)) +  # Display count within each bar
+  labs(title = "Number of Matches Won by India and Pakistan in Different Hosts",
+       y = "Number of Matches",
+       fill = "Result") +
+  scale_fill_manual(values = c("India Won" = "blue", "Pakistan Won" = "green", "Tied" = "red")) +  # Set colors
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+**Stacked Bar Plot for Match Result Distribution**
+
+```{r}
+
+ui <- fluidPage(
+  titlePanel("India vs Pakistan Match Result Distribution"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("host", "Choose a Host", choices = unique(data2$Host)),
+      selectInput("tournament", "Choose a Tournament", choices = unique(data2$`Tournament Type`)),
+      sliderInput("year_range", "Select Year Range", min = min(data2$Year), max = max(data2$Year), value = c(min(data2$Year), max(data2$Year)), step = 1)
+    ),
+    mainPanel(
+      plotOutput("resultPlot")
+    )
+  )
+)
+
+
+
+# Server
+server <- function(input, output) {
+  output$resultPlot <- renderPlot({
+    # Filter data based on selected host, tournament, and year range
+    selected_data <- data2 %>%
+      filter(Host == input$host, `Tournament Type` == input$tournament, between(Year, input$year_range[1], input$year_range[2]))
+    
+    # Count occurrences of each result and team
+    result_counts <- selected_data %>%
+      group_by(Result) %>%
+      summarise(matches_count = n())
+    
+    # Plot result distribution with different colors
+    ggplot(selected_data, aes(x = factor(1), fill = Result)) +
+      geom_bar(position = "stack", color = "black") +
+      geom_text(stat = "count", aes(label = after_stat(count)), position = position_stack(vjust = 0.5), color = "black") +
+      labs(title = paste("Result Distribution at", input$host, ":", input$tournament, "India vs Pakistan"), y = "Number of Matches") +
+      scale_fill_manual(values = c("India Won" = "green", "Pakistan Won" = "blue", "Tied" = "red")) +
+      theme_minimal() +
+      theme(axis.text.x = element_blank(),  # Hide x-axis labels
+            axis.ticks.x = element_blank())   # Hide x-axis ticks
+  })
+}
+
+# Run the Shiny app
+shinyApp(ui = ui, server = server)
+
+```
+
+**PIE CHART**
+
+```{r fig.height=8, fig.width=15, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+#PIE CHART
+
+ui <- fluidPage(
+  titlePanel("India vs Pakistan Percentage Result Distribution"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("tournament", "Choose a Tournament", choices = unique(data2$`Tournament Type`))
+    ),
+    mainPanel(
+      plotOutput("resultPie"),  # Render the pie chart
+      DTOutput("resultTable")   # Render the interactive table
+    )
+  )
+)
+
+# Server
+server <- function(input, output) {
+  output$resultPie <- renderPlot({
+    # Filter data based on selected tournament
+    selected_data <- data2 %>%
+      filter(`Tournament Type` == input$tournament)
+    
+    # Count occurrences of each result
+    result_counts <- table(selected_data$Result)
+    
+    # Convert counts to percentages
+    result_percentages <- prop.table(result_counts) * 100
+    
+    # Create a data frame for plotting
+    result_df <- data.frame(result = names(result_percentages), percentage = as.numeric(result_percentages))
+    
+    # Plot pie chart for match result distribution
+    p <- ggplot(result_df, aes(x = "", y = percentage, fill = result, label = sprintf("%.1f%%", percentage))) +
+      geom_bar(stat = "identity", width = 1) +
+      coord_polar(theta = "y") +
+      labs(title = paste("Match Result Distribution", input$tournament, "India vs Pakistan")) +
+      scale_fill_manual(values = c("India Won" = "blue", "Pakistan Won" = "green", "Tied" = "red")) +
+      theme_minimal() +
+      theme(axis.text = element_blank(), 
+            axis.title = element_blank(),
+            panel.grid = element_blank()) +
+      geom_text(size = 5, position = position_stack(vjust = 0.5)) +
+      theme(legend.position = "bottom")
+    
+    print(p)
+  })
+  
+  output$resultTable <- renderDT({
+    # Filter data based on selected tournament
+    selected_data <- data2 %>%
+      filter(`Tournament Type` == input$tournament)
+    
+    # Count occurrences of each result
+    result_counts <- table(selected_data$Result)
+    
+    # Convert to data frame
+    result_table <- data.frame(Result = names(result_counts), Count = as.numeric(result_counts))
+    
+    datatable(result_table, options = list(pageLength = 5))  # Adjust pageLength as needed
+  })
+}
+
+# Run the Shiny app
+shinyApp(ui = ui, server = server)
+
+```
